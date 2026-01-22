@@ -1,5 +1,5 @@
 [project]
-name = "template"
+name = "crab"
 version = "0.1.0"
 description = "Description goes here"
 readme = "README.md"
@@ -10,6 +10,7 @@ dependencies = []
 dev = [
     "pyrefly>=0.41.1",
     "ruff>=0.14.4",
+    "pytest>=9.0.2",
 ]
 
 [tool.ruff]

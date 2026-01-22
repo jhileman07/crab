@@ -1,4 +1,11 @@
-from template.common import print_project_name
+from crab.runner.stdout_runner import StdoutRunner
+from crab.shell import cd
 
 if __name__ == "__main__":
-    print_project_name()
+    cd("../cs322-compiler/L2")
+
+    runner = StdoutRunner("./tests/liveness", argc=1)
+    runner = runner.with_command(lambda f: f"./bin/L2 -l {f}")
+    runner = runner.with_output(lambda f: f"{f}.out")
+    runner = runner.with_args("*.L2f")
+    runner.run()

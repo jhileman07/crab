@@ -17,3 +17,6 @@ tasks:
       - task: format
       - task: lint
       - task: strict-check
+  test:
+    cmds:
+      - uv run pytest -v -s ./crab
