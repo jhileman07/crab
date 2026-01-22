@@ -1,4 +1,5 @@
 import time
+from enum import IntEnum
 from itertools import product
 from typing import Optional
 
@@ -9,11 +10,17 @@ import crab.tool as tool
 from .base_runner import BaseRunner
 
 
+class Verbosity(IntEnum):
+    NOT = 0
+    SOME = 1
+    HIGH = 2
+
+
 class StdoutRunner(BaseRunner):
-    def __init__(self, folder: str, argc: int = 1, verbose: bool = False):
+    def __init__(self, folder: str, argc: int = 1, verbosity: Verbosity = Verbosity.NOT):
         self.folder = folder
         self.argc = argc
-        self.verbose = verbose
+        self.verbosity = verbosity
 
         self.command = None
         self.input = None
@@ -78,7 +85,7 @@ class StdoutRunner(BaseRunner):
             processed_output = self.post_process(out) if self.post_process is not None else out
 
             if processed_output == expected_output:
-                io.print_ok(all_files_str, end=("\n" if self.verbose else ""))
+                io.print_ok(all_files_str, end=("\n" if self.verbosity == Verbosity.HIGH else ""))
                 passed += 1
                 continue
 
@@ -86,7 +93,7 @@ class StdoutRunner(BaseRunner):
             failed += 1
             failed_tests.append(all_files_str)
 
-            if not self.verbose:
+            if self.verbosity == Verbosity.NOT:
                 continue
 
             if err:
