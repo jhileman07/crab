@@ -1,6 +1,7 @@
 import glob
 import inspect
 import os
+from pathlib import Path
 from types import FunctionType
 from typing import Tuple
 
@@ -16,6 +17,6 @@ def has_arity(fn: FunctionType, argc: int) -> Tuple[bool, str]:
     return True, ""
 
 
-def get_files(base: str, capture: str) -> list[str]:
+def get_files(base: Path | str, capture: str) -> list[str]:
     pattern = os.path.join(base, capture)
-    return [path for path in glob.glob(pattern, recursive=False) if os.path.isfile(path)]
+    return [str(Path(path).resolve()) for path in glob.glob(pattern, recursive=False) if os.path.isfile(path)]

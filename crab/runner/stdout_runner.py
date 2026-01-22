@@ -1,6 +1,7 @@
 import time
 from enum import IntEnum
 from itertools import product
+from pathlib import Path
 from typing import Optional
 
 import crab.io as io
@@ -21,6 +22,7 @@ class StdoutRunner(BaseRunner):
         self.folder = folder
         self.argc = argc
         self.verbosity = verbosity
+        self.path = "./"
 
         self.command = None
         self.input = None
@@ -58,6 +60,10 @@ class StdoutRunner(BaseRunner):
         self.post_process = fn
         return self
 
+    def cd(self, path: str) -> StdoutRunner:
+        self.path = path
+        return self
+
     def run(self) -> None:
         # ! Precondition: all lambdas have the correct arity
         if self.command is None:
@@ -65,9 +71,9 @@ class StdoutRunner(BaseRunner):
         if self.args is None or len(self.args) != self.argc:
             raise ValueError("Insufficient arguments provided to run tests")
 
-        files = [tool.get_files(self.folder, arg) for arg in self.args]
+        files = [tool.get_files(Path(self.path) / self.folder, arg) for arg in self.args]
 
-        cproduct = product(*files)
+        cproduct = list(product(*files))
         inputs = [self.input(*f) if self.input else None for f in cproduct]
         outputs = [self.output(*f) if self.output else None for f in cproduct]
         commands = [self.command(*f) for f in cproduct]
@@ -81,7 +87,7 @@ class StdoutRunner(BaseRunner):
             all_files_str = ", ".join(files)
             program_input = io.read(input0) if input0 is not None else ""
 
-            out, err = shell.run(command0, input=program_input)
+            out, err = shell.run(command0, input=program_input, folder=self.path)
             expected_output = io.read(output0) if output0 is not None else ""
             processed_output = self.post_process(out) if self.post_process is not None else out
 
