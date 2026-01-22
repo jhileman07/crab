@@ -8,6 +8,7 @@ def sort_single_line(line: str) -> str:
 
 
 def sort_lines(output: str) -> str:
+    locale.setlocale(locale.LC_COLLATE, "en_US.UTF-8")
     lines = output.split("\n")
     result = ""
     for line in lines:
