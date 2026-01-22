@@ -67,7 +67,7 @@ class StdoutRunner(BaseRunner):
             all_files_str = ", ".join(files)
             program_input = io.read(input0) if input0 is not None else ""
 
-            out, _ = shell.run(command0, input=program_input)
+            out, err = shell.run(command0, input=program_input)
             expected_output = io.read(output0) if output0 is not None else ""
 
             if out == expected_output:
@@ -76,6 +76,8 @@ class StdoutRunner(BaseRunner):
                 continue
 
             io.print_fail(all_files_str)
+            if err:
+                io.println(f"Err: {err}")
             io.println(f"Command to reproduce: {command0}")
             io.println("Diff:")
             io.print_diff(out, expected_output)
