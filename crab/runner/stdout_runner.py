@@ -79,17 +79,9 @@ class StdoutRunner(BaseRunner):
             io.print_fail(all_files_str)
             io.println(f"Command to reproduce: {command0}")
             io.println("Diff:")
+            io.print_diff(out, expected_output)
             failed += 1
             failed_tests.append(all_files_str)
-
-            diff = difflib.unified_diff(
-                out.splitlines(keepends=True),
-                expected_output.splitlines(keepends=True),
-                fromfile="out",
-                tofile="expected_output",
-            )
-
-            io.println("".join(diff))
 
         end_time = time.time()
 
