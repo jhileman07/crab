@@ -67,16 +67,17 @@ class StdoutRunner(BaseRunner):
 
         files = [tool.get_files(self.folder, arg) for arg in self.args]
 
-        inputs = [self.input(*f) if self.input else None for f in product(*files)]
-        outputs = [self.output(*f) if self.output else None for f in product(*files)]
-        commands = [self.command(*f) for f in product(*files)]
+        cproduct = product(*files)
+        inputs = [self.input(*f) if self.input else None for f in cproduct]
+        outputs = [self.output(*f) if self.output else None for f in cproduct]
+        commands = [self.command(*f) for f in cproduct]
 
         failed = 0
         failed_tests = []
         passed = 0
 
         start_time = time.time()
-        for input0, output0, command0, files in zip(inputs, outputs, commands, product(*files)):
+        for input0, output0, command0, files in zip(inputs, outputs, commands, cproduct):
             all_files_str = ", ".join(files)
             program_input = io.read(input0) if input0 is not None else ""
 

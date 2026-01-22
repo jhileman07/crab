@@ -7,7 +7,6 @@ def run(command, input: str) -> Tuple[str, str]:
     result = subprocess.run(
         command,
         input=input,
-        shell=True,
         capture_output=True,
         text=True,
         check=False,
