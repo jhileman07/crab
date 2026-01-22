@@ -12,16 +12,16 @@ def read(fl: str) -> str:
         return f.read()
 
 
-def echo(msg: str) -> None:
-    print(f"\r{msg}\033[K", end="")
+def echo(msg: str, end: str = "") -> None:
+    print(f"\r{msg}\033[K", end=end)
 
 
 def println(msg: str) -> None:
     print(f"\r{msg}\033[K")
 
 
-def print_ok(input: str) -> None:
-    echo(f"{BOLD}{UNDERLINE}Test {input}{RESET}    [{GREEN}OK{RESET}]")
+def print_ok(input: str, end: str = "") -> None:
+    echo(f"{BOLD}{UNDERLINE}Test {input}{RESET}    [{GREEN}OK{RESET}]{end}")
 
 
 def print_fail(input: str) -> None:

@@ -78,7 +78,7 @@ class StdoutRunner(BaseRunner):
             processed_output = self.post_process(out) if self.post_process is not None else out
 
             if processed_output == expected_output:
-                io.print_ok(all_files_str)
+                io.print_ok(all_files_str, end=("\n" if self.verbose else ""))
                 passed += 1
                 continue
 
