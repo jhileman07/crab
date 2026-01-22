@@ -1,3 +1,5 @@
+import difflib
+
 RED = "\033[31m"
 GREEN = "\033[32m"
 BOLD = "\033[1m"
@@ -24,6 +26,7 @@ def print_ok(input: str) -> None:
 
 def print_fail(input: str) -> None:
     println(f"{BOLD}{UNDERLINE}Test {input}{RESET}    [{RED}FAIL{RESET}]")
+
 
 def print_diff(str1: str, str2: str) -> None:
     diff = difflib.unified_diff(
