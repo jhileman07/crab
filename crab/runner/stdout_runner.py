@@ -10,13 +10,15 @@ from .base_runner import BaseRunner
 
 
 class StdoutRunner(BaseRunner):
-    def __init__(self, folder: str, argc: int = 1):
+    def __init__(self, folder: str, argc: int = 1, verbose: bool = False):
         self.folder = folder
         self.argc = argc
+        self.verbose = verbose
 
         self.command = None
         self.input = None
         self.output = None
+        self.post_process = None
 
         self.args: Optional[list[str]] = None
 
@@ -45,6 +47,10 @@ class StdoutRunner(BaseRunner):
         self.args = list(args)
         return self
 
+    def bind_postprocessor(self, fn) -> StdoutRunner:
+        self.post_process = fn
+        return self
+
     def run(self) -> None:
         # ! Precondition: all lambdas have the correct arity
         if self.command is None:
@@ -69,20 +75,25 @@ class StdoutRunner(BaseRunner):
 
             out, err = shell.run(command0, input=program_input)
             expected_output = io.read(output0) if output0 is not None else ""
+            processed_output = self.post_process(out) if self.post_process is not None else out
 
-            if out == expected_output:
+            if processed_output == expected_output:
                 io.print_ok(all_files_str)
                 passed += 1
                 continue
 
             io.print_fail(all_files_str)
+            failed += 1
+            failed_tests.append(all_files_str)
+
+            if not self.verbose:
+                continue
+
             if err:
                 io.println(f"Err: {err}")
             io.println(f"Command to reproduce: {command0}")
             io.println("Diff:")
             io.print_diff(out, expected_output)
-            failed += 1
-            failed_tests.append(all_files_str)
 
         end_time = time.time()
 
