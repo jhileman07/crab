@@ -31,38 +31,32 @@ class StdoutRunner(BaseRunner):
 
         self.args: Optional[list[str]] = None
 
-    def with_command(self, fn) -> StdoutRunner:
+    def with_command(self, fn) -> None:
         self.command = fn
         if not tool.has_arity(self.command, self.argc)[0]:
             raise ValueError(f"self.command must be a function of arity {self.argc}")
-        return self
 
-    def with_input(self, fn, optional: bool = True) -> StdoutRunner:
+    def with_input(self, fn, optional: bool = True) -> None:
         self.input = fn
         if not tool.has_arity(self.input, self.argc)[0]:
             raise ValueError(f"self.input must be a function of arity {self.argc}")
-        return self
 
-    def with_output(self, fn) -> StdoutRunner:
+    def with_output(self, fn) -> None:
         self.output = fn
         if not tool.has_arity(self.output, self.argc)[0]:
             raise ValueError(f"self.output must be a function of arity {self.argc}")
-        return self
 
-    def with_args(self, *args: str) -> StdoutRunner:
+    def with_args(self, *args: str) -> None:
         num_args = len(args)
         if num_args != self.argc:
             raise ValueError(f"must have the same number of args as argc, got {num_args} expected {self.argc}")
         self.args = list(args)
-        return self
 
-    def bind_postprocessor(self, fn) -> StdoutRunner:
+    def bind_postprocessor(self, fn) -> None:
         self.post_process = fn
-        return self
 
-    def cd(self, path: str) -> StdoutRunner:
+    def cd(self, path: str) -> None:
         self.path = path
-        return self
 
     def run(self) -> None:
         # ! Precondition: all lambdas have the correct arity
