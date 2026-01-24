@@ -78,6 +78,8 @@ class StdoutRunner(BaseRunner):
 
         start_time = time.time()
         for input0, output0, command0, files in zip(inputs, outputs, commands, cproduct):
+            test_start_time = time.time()
+
             all_files_str = ", ".join(files)
             program_input = io.read(input0) if input0 is not None else ""
 
@@ -85,12 +87,16 @@ class StdoutRunner(BaseRunner):
             expected_output = io.read(output0) if output0 is not None else ""
             processed_output = self.post_process(out) if self.post_process is not None else out
 
+            cur_time = time.time()
+
             if processed_output == expected_output:
-                io.print_ok(all_files_str, end=("\n" if self.verbosity == Verbosity.HIGH else ""))
+                io.print_ok(
+                    all_files_str, cur_time - test_start_time, end=("\n" if self.verbosity == Verbosity.HIGH else "")
+                )
                 passed += 1
                 continue
 
-            io.print_fail(all_files_str)
+            io.print_fail(all_files_str, cur_time - test_start_time)
             failed += 1
             failed_tests.append(all_files_str)
 
@@ -110,7 +116,4 @@ class StdoutRunner(BaseRunner):
         io.println(f"failed: {', '.join(failed_tests) or 'none'}")
 
         time_elapsed = end_time - start_time
-        if time_elapsed < 1:
-            io.println(f"time elapsed: {time_elapsed * 1000:.5f} ms")
-        else:
-            io.println(f"time elapsed: {time_elapsed} s")
+        io.println(f"time elapsed: {io.format_time(time_elapsed)}")

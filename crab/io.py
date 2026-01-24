@@ -20,12 +20,20 @@ def println(msg: str) -> None:
     print(f"\r{msg}\033[K")
 
 
-def print_ok(input: str, end: str = "") -> None:
-    echo(f"{BOLD}{UNDERLINE}Test {input}{RESET}    [{GREEN}OK{RESET}]{end}")
+def format_time(t: float) -> str:
+    if t < 1:
+        return f"{t * 1000:.3f} ms"
+    return f"{t:.3f} s"
 
 
-def print_fail(input: str) -> None:
-    println(f"{BOLD}{UNDERLINE}Test {input}{RESET}    [{RED}FAIL{RESET}]")
+def print_ok(input: str, time: float | None = None, end: str = "") -> None:
+    time_str = format_time(time) if time is not None else ""
+    echo(f"{BOLD}{UNDERLINE}Test {input}{RESET}    [{GREEN}OK{RESET}] {time_str}{end}")
+
+
+def print_fail(input: str, time: float | None = None) -> None:
+    time_str = format_time(time) if time is not None else ""
+    println(f"{BOLD}{UNDERLINE}Test {input}{RESET}    [{RED}FAIL{RESET}] {time_str}")
 
 
 def print_diff(str1: str, str2: str) -> None:
