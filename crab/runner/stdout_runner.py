@@ -73,31 +73,32 @@ class StdoutRunner(BaseRunner):
         outputs = [self.output(*f) if self.output else None for f in cproduct]
         commands = [self.command(*f) for f in cproduct]
 
+        io.println(f"Running tests for suite {self.folder}")
+        
         failed = 0
         failed_tests = []
         passed = 0
-
-        start_time = time.time()
+        time_elapsed = 0
         for input0, output0, command0, files in zip(inputs, outputs, commands, cproduct):
-            test_start_time = time.time()
-
             all_files_str = ", ".join(files)
             program_input = io.read(input0) if input0 is not None else ""
 
+            test_start_time = time.time()
             out, err = shell.run(command0, input=program_input, folder=self.path)
+            test_end_time = time.time()
+            time_elapsed += test_end_time - test_start_time
+
             expected_output = io.read(output0) if output0 is not None else ""
             processed_output = self.post_process(out) if self.post_process is not None else out
 
-            cur_time = time.time()
-
             if processed_output == expected_output:
                 io.print_ok(
-                    all_files_str, cur_time - test_start_time, end=("\n" if self.verbosity >= Verbosity.HIGH else "")
+                    all_files_str, test_end_time - test_start_time, end=("\n" if self.verbosity >= Verbosity.HIGH else "")
                 )
                 passed += 1
                 continue
 
-            io.print_fail(all_files_str, cur_time - test_start_time)
+            io.print_fail(all_files_str, test_end_time - test_start_time)
             failed += 1
             failed_tests.append(all_files_str)
 
@@ -117,11 +118,7 @@ class StdoutRunner(BaseRunner):
             if self.verbosity == Verbosity.FIRST_FAIL:
                 break
 
-        end_time = time.time()
-
         io.println("Summary:")
         io.println(f"passed: {passed}/{passed + failed}")
         io.println(f"failed: {', '.join(failed_tests) or 'none'}")
-
-        time_elapsed = end_time - start_time
         io.println(f"time elapsed: {io.format_time(time_elapsed)}")
