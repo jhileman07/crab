@@ -40,8 +40,8 @@ def print_diff(str1: str, str2: str) -> None:
     diff = difflib.unified_diff(
         str1.splitlines(keepends=True),
         str2.splitlines(keepends=True),
-        fromfile="str1",
-        tofile="str2",
+        fromfile="produced",
+        tofile="expected",
     )
 
     println("".join(diff))

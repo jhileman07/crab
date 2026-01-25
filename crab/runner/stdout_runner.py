@@ -14,7 +14,8 @@ from .base_runner import BaseRunner
 class Verbosity(IntEnum):
     NOT = 0
     SOME = 1
-    HIGH = 2
+    FIRST_FAIL = 2
+    HIGH = 3
 
 
 class StdoutRunner(BaseRunner):
@@ -91,7 +92,7 @@ class StdoutRunner(BaseRunner):
 
             if processed_output == expected_output:
                 io.print_ok(
-                    all_files_str, cur_time - test_start_time, end=("\n" if self.verbosity == Verbosity.HIGH else "")
+                    all_files_str, cur_time - test_start_time, end=("\n" if self.verbosity >= Verbosity.HIGH else "")
                 )
                 passed += 1
                 continue
@@ -106,8 +107,15 @@ class StdoutRunner(BaseRunner):
             if err:
                 io.println(f"Err: {err}")
             io.println(f"Command to reproduce: {command0}")
+            io.println("Produced:")
+            io.println(processed_output)
+            io.println("Expected:")
+            io.println(expected_output)
             io.println("Diff:")
-            io.print_diff(out, expected_output)
+            io.print_diff(processed_output, expected_output)
+
+            if self.verbosity == Verbosity.FIRST_FAIL:
+                break
 
         end_time = time.time()
 
