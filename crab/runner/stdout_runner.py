@@ -28,6 +28,7 @@ class StdoutRunner(BaseRunner):
         self.command = None
         self.input = None
         self.output = None
+        self.pre_process = None
         self.post_process = None
 
         self.args: Optional[list[str]] = None
@@ -53,6 +54,9 @@ class StdoutRunner(BaseRunner):
             raise ValueError(f"must have the same number of args as argc, got {num_args} expected {self.argc}")
         self.args = list(args)
 
+    def bind_preprocessor(self, fn) -> None:
+        self.pre_process = fn
+    
     def bind_postprocessor(self, fn) -> None:
         self.post_process = fn
 
@@ -89,6 +93,8 @@ class StdoutRunner(BaseRunner):
             time_elapsed += test_end_time - test_start_time
 
             expected_output = io.read(output0) if output0 is not None else ""
+            if expected_output != "" and self.pre_process is not None:
+                expected_output = self.pre_process(expected_output)
             processed_output = self.post_process(out) if self.post_process is not None else out
 
             if processed_output == expected_output:
