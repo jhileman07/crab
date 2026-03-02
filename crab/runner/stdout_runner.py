@@ -15,7 +15,8 @@ class Verbosity(IntEnum):
     NOT = 0
     SOME = 1
     FIRST_FAIL = 2
-    HIGH = 3
+    FAIL_ON_COMPILE_ERROR = 3
+    HIGH = 4
 
 
 class StdoutRunner(BaseRunner):
@@ -25,6 +26,7 @@ class StdoutRunner(BaseRunner):
         self.verbosity = verbosity
         self.path = "./"
 
+        self.pre_command = None
         self.command = None
         self.input = None
         self.output = None
@@ -32,6 +34,11 @@ class StdoutRunner(BaseRunner):
         self.post_process = None
 
         self.args: Optional[list[str]] = None
+
+    def with_pre_command(self, fn) -> None:
+        self.pre_command = fn
+        if not tool.has_arity(self.pre_command, self.argc)[0]:
+            raise ValueError(f"self.pre_command must be a function of arity {self.argc}")
 
     def with_command(self, fn) -> None:
         self.command = fn
@@ -72,22 +79,41 @@ class StdoutRunner(BaseRunner):
 
         files = [tool.get_files(Path(self.path) / self.folder, arg) for arg in self.args]
 
+        if self.argc == 1:
+            files = [sorted(files[0], key=lambda f: Path(f).stat().st_size)]
+
         cproduct = list(product(*files))
         inputs = [self.input(*f) if self.input else None for f in cproduct]
         outputs = [self.output(*f) if self.output else None for f in cproduct]
+        pre_commands = [self.pre_command(*f) if self.pre_command else None for f in cproduct]
         commands = [self.command(*f) for f in cproduct]
 
         io.println(f"Running tests for suite {self.folder}")
-        
+
         failed = 0
         failed_tests = []
         passed = 0
-        time_elapsed = 0
-        for input0, output0, command0, files in zip(inputs, outputs, commands, cproduct):
+        time_elapsed = 0.0
+        for input0, output0, precommand0, command0, files in zip(inputs, outputs, pre_commands, commands, cproduct):
             all_files_str = ", ".join(files)
-            program_input = io.read(input0) if input0 is not None else ""
+            io.printr(f"Running test {all_files_str}")
+            program_input = ""
+            if input0 is not None and Path(input0).is_file():
+                program_input = io.read(input0)
 
             test_start_time = time.time()
+            if precommand0 is not None:
+                _, err = shell.run(precommand0, folder=self.path)
+                if err:
+                    io.print_fail(all_files_str, 0)
+                    if self.verbosity > Verbosity.NOT:
+                        io.println(f"Command to reproduce: {precommand0}")
+                        io.println(f"Precommand failed, error: {err}")
+                    failed += 1
+                    if self.verbosity == Verbosity.FIRST_FAIL or self.verbosity == Verbosity.FAIL_ON_COMPILE_ERROR:
+                        break
+                    continue
+
             out, err = shell.run(command0, input=program_input, folder=self.path)
             test_end_time = time.time()
             time_elapsed += test_end_time - test_start_time
@@ -99,7 +125,9 @@ class StdoutRunner(BaseRunner):
 
             if processed_output == expected_output:
                 io.print_ok(
-                    all_files_str, test_end_time - test_start_time, end=("\n" if self.verbosity >= Verbosity.HIGH else "")
+                    all_files_str,
+                    test_end_time - test_start_time,
+                    end=("\n" if self.verbosity >= Verbosity.HIGH else ""),
                 )
                 passed += 1
                 continue
@@ -113,7 +141,7 @@ class StdoutRunner(BaseRunner):
 
             if err:
                 io.println(f"Err: {err}")
-            io.println(f"Command to reproduce: {command0}")
+            io.println(f"Command to reproduce: {precommand0} && {command0}")
             io.println("Produced:")
             io.println(processed_output)
             io.println("Expected:")

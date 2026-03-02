@@ -15,3 +15,6 @@ dev = [
 
 [tool.ruff]
 line-length = 120
+
+[project.scripts]
+crab = "crab.cli:main"
