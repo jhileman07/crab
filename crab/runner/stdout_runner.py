@@ -63,7 +63,7 @@ class StdoutRunner(BaseRunner):
 
     def bind_preprocessor(self, fn) -> None:
         self.pre_process = fn
-    
+
     def bind_postprocessor(self, fn) -> None:
         self.post_process = fn
 
