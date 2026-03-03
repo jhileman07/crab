@@ -101,7 +101,6 @@ class StdoutRunner(BaseRunner):
             if input0 is not None and Path(input0).is_file():
                 program_input = io.read(input0)
 
-            test_start_time = time.time()
             if precommand0 is not None:
                 _, err = shell.run(precommand0, folder=self.path)
                 if err:
@@ -114,14 +113,15 @@ class StdoutRunner(BaseRunner):
                         break
                     continue
 
+            test_start_time = time.time()
             out, err = shell.run(command0, input=program_input, folder=self.path)
             test_end_time = time.time()
             time_elapsed += test_end_time - test_start_time
 
-            expected_output = io.read(output0) if output0 is not None else ""
+            expected_output = io.read(output0).strip() if output0 is not None else ""
             if expected_output != "" and self.pre_process is not None:
                 expected_output = self.pre_process(expected_output)
-            processed_output = self.post_process(out) if self.post_process is not None else out
+            processed_output = self.post_process(out.strip()) if self.post_process is not None else out.strip()
 
             if processed_output == expected_output:
                 io.print_ok(
