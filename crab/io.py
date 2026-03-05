@@ -53,7 +53,7 @@ def format_time(t: float) -> str:
 def print_ok(input: str, time: float | list[float] | None = None, end: str = "") -> None:
     if isinstance(time, list):
         if len(time) > 5:
-            time_str = " ".join(format_time(t)[0:3] for t in time) + " " + format_time(time[-1])
+            time_str = " ".join(format_time(t) for t in time[0:3]) + " ... " + format_time(time[-1])
         else:
             time_str = " ".join(format_time(t) for t in time)
     else:
