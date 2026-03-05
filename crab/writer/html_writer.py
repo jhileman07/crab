@@ -1,5 +1,6 @@
 import base64
 import html
+import statistics
 
 import polars as pl
 
@@ -67,6 +68,8 @@ def _render_table(rows: list[dict]) -> str:
     for row in rows:
         badge = '<span class="badge-pass">PASS</span>' if row["passed"] else '<span class="badge-fail">FAIL</span>'
         mean_t = _fmt_time(row["time_mean_s"]) if row["time_mean_s"] else "—"
+        all_t = row["time_all_s"]
+        stdev_t = _fmt_time(statistics.stdev(all_t)) if len(all_t) >= 2 else "—"
         if row["stderr"]:
             lines = row["stderr"].splitlines()
             truncated = lines[:5]
@@ -79,12 +82,13 @@ def _render_table(rows: list[dict]) -> str:
             f"<td>{html.escape(row['test'])}</td>"
             f"<td>{badge}</td>"
             f'<td class="timing">{mean_t}</td>'
+            f'<td class="timing">{stdev_t}</td>'
             f'<td style="white-space: pre-wrap">{stderr_cell}</td>'
             "</tr>"
         )
     return (
         "<table>"
-        "<thead><tr><th>Test</th><th>Result</th><th>Mean Time</th><th>Stderr</th></tr></thead>"
+        "<thead><tr><th>Test</th><th>Result</th><th>Mean Time</th><th>Stdev</th><th>Stderr</th></tr></thead>"
         "<tbody>" + "\n".join(table_rows) + "</tbody>"
         "</table>"
     )
