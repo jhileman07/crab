@@ -1,16 +1,16 @@
-#!/usr/bin/env python3
 """
 Minimal HTML receiver. Accepts POST / with a bearer token and writes the body
 to index.html. Nginx serves index.html statically.
 
 Usage:
-    CRAB_TOKEN=secret python server.py [--port 8765] [--out index.html]
+    CRAB_TOKEN=secret python server.py [--port 8765] [--out index.html] [-ttl TTL]
 """
 
 import argparse
 import hmac
 import os
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -19,11 +19,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def make_handler(token: str, path: Path):
+def make_handler(token: str, path: Path, ttl: int):
+    timer = None
+
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
+            nonlocal timer
+
             auth = self.headers.get("Authorization", "")
             if not hmac.compare_digest(auth, f"Bearer {token}"):
+                self.rfile.read(int(self.headers.get("Content-Length", 0)))
                 self.send_response(401)
                 self.end_headers()
                 return
@@ -33,6 +38,13 @@ def make_handler(token: str, path: Path):
 
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)
+
+            if timer:
+                timer.cancel()
+            if ttl > 0:
+                timer = threading.Timer(ttl, lambda: path.write_bytes(b""))
+                timer.daemon = True
+                timer.start()
 
             self.send_response(204)
             self.end_headers()
@@ -53,9 +65,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--path", type=Path, default=Path("index.html"))
+    parser.add_argument("--ttl", type=int, default=0, help="Seconds before clearing index.html (0=never)")
     args = parser.parse_args()
 
-    server = HTTPServer(("127.0.0.1", args.port), make_handler(token, args.path))
+    server = HTTPServer(("127.0.0.1", args.port), make_handler(token, args.path, args.ttl))
     print(f"Listening on 127.0.0.1:{args.port}, writing to {args.path}")
     server.serve_forever()
 
