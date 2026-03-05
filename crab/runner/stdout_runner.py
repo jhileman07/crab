@@ -10,6 +10,7 @@ import crab.diff as diff
 import crab.io as io
 import crab.shell as shell
 import crab.tool as tool
+from crab.writer import OutputWriter
 
 from .base_runner import BaseRunner
 
@@ -23,10 +24,17 @@ class Verbosity(IntEnum):
 
 
 class StdoutRunner(BaseRunner[pl.DataFrame]):
-    def __init__(self, folder: str, argc: int = 1, verbosity: Verbosity = Verbosity.NOT):
+    def __init__(
+        self,
+        folder: str,
+        argc: int = 1,
+        verbosity: Verbosity = Verbosity.NOT,
+        output_writer: OutputWriter | None = None,
+    ):
         self.folder = folder
         self.argc = argc
         self.verbosity = verbosity
+        self.output_writer = output_writer
         self.repeat_count = 1
         self.path = "./"
 
@@ -209,4 +217,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
         io.println(f"failed: {', '.join(failed_tests) or 'none'}")
         io.println(f"time elapsed: {io.format_time(time_elapsed)}")
 
-        return self._to_dataframe(rows)
+        df = self._to_dataframe(rows)
+        if self.output_writer is not None:
+            self.output_writer.write(df)
+        return df

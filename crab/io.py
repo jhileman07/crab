@@ -52,7 +52,10 @@ def format_time(t: float) -> str:
 
 def print_ok(input: str, time: float | list[float] | None = None, end: str = "") -> None:
     if isinstance(time, list):
-        time_str = " ".join(format_time(t) for t in time)
+        if len(time) > 5:
+            time_str = " ".join(format_time(t)[0:3] for t in time) + " " + format_time(time[-1])
+        else:
+            time_str = " ".join(format_time(t) for t in time)
     else:
         time_str = format_time(time) if time is not None else ""
     echo(f"{BOLD}{UNDERLINE}Test {input}{RESET}    [{GREEN}OK{RESET}] {time_str}{end}")
