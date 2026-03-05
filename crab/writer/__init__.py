@@ -1,5 +1,11 @@
 from .base import OutputWriter
-from .compose_writer import CsvComposeWriter, HtmlComposeWriter, JsonComposeWriter, ParquetComposeWriter
+from .compose_writer import (
+    CrabServerWriter,
+    CsvComposeWriter,
+    HtmlComposeWriter,
+    JsonComposeWriter,
+    ParquetComposeWriter,
+)
 from .csv_writer import CsvWriter
 from .html_writer import HtmlWriter
 from .json_writer import JsonWriter
@@ -15,4 +21,5 @@ __all__ = [
     "HtmlWriter",
     "JsonWriter",
     "ParquetWriter",
+    "CrabServerWriter",
 ]

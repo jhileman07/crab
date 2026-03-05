@@ -15,7 +15,10 @@ load_dotenv()
 
 class ComposeWriter(ABC):
     def __init__(self, path: str | Path) -> None:
-        self.path = Path(path)
+        if "//" in str(path):
+            self.path = path
+        else:
+            self.path = Path(path)
 
     @abstractmethod
     def write(self, tabs: list[tuple[str, pl.DataFrame]]) -> None: ...
@@ -27,16 +30,20 @@ def _labeled(label: str, df: pl.DataFrame) -> pl.DataFrame:
 
 class CsvComposeWriter(ComposeWriter):
     def write(self, tabs: list[tuple[str, pl.DataFrame]]) -> None:
+        assert isinstance(self.path, Path)
         pl.concat([_labeled(label, df) for label, df in tabs]).write_csv(self.path)
 
 
 class ParquetComposeWriter(ComposeWriter):
     def write(self, tabs: list[tuple[str, pl.DataFrame]]) -> None:
+        assert isinstance(self.path, Path)
         pl.concat([_labeled(label, df) for label, df in tabs]).write_parquet(self.path)
 
 
 class JsonComposeWriter(ComposeWriter):
     def write(self, tabs: list[tuple[str, pl.DataFrame]]) -> None:
+        assert isinstance(self.path, Path)
+
         def _serialize_row(row: dict) -> dict:
             if row.get("diff_b64") is not None:
                 row = {**row, "diff_b64": base64.b64encode(row["diff_b64"]).decode()}
@@ -48,11 +55,13 @@ class JsonComposeWriter(ComposeWriter):
 
 class HtmlComposeWriter(ComposeWriter):
     def write(self, tabs: list[tuple[str, pl.DataFrame]]) -> None:
+        assert isinstance(self.path, Path)
         self.path.write_text(_render_html_tabbed(tabs), encoding="utf-8")
 
 
 class CrabServerWriter(ComposeWriter):
     def write(self, tabs: list[tuple[str, pl.DataFrame]]) -> None:
+        assert isinstance(self.path, str)
         html_text = _render_html_tabbed(tabs)
         response = requests.post(
             str(self.path),
