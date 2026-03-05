@@ -53,8 +53,8 @@ details { border: 1px solid #ddd; border-radius: 4px; margin: 0.75rem 0; }
 summary { cursor: pointer; padding: 0.6rem 1rem; background: #fff0f0; font-weight: bold; }
 summary:hover { background: #ffe4e4; }
 .detail-body { padding: 0.75rem 1rem; }
-.stderr-block { background: #fff8f0; border-left: 3px solid #f90; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; white-space: pre-wrap; word-break: break-all; }
-.stdout-block { background: #f8f8f8; border-left: 3px solid #88c; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; white-space: pre-wrap; word-break: break-all; font-family: monospace; }
+.stderr-block { background: #fff8f0; border-left: 3px solid #f90; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; word-break: break-all; }
+.stdout-block { background: #f8f8f8; border-left: 3px solid #88c; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; word-break: break-all; font-family: monospace; }
 pre.diff { background: #f8f8f8; border: 1px solid #ddd; border-radius: 3px; padding: 0.75rem; font-size: 0.82rem; overflow-x: auto; white-space: pre; line-height: 1.4; }
 .diff-add { color: #2a7; background: #eaffea; display: block; }
 .diff-del { color: #c33; background: #fff0f0; display: block; }
@@ -127,14 +127,14 @@ def _render_body(df: pl.DataFrame) -> str:
             test_name = html.escape(row["test"])
             stderr_html = ""
             if row["stderr"]:
-                stderr_html = f'<pre class="stderr-block">{html.escape(row["stderr"])}</pre>'
+                stderr_html = f'<div class="stderr-block">{html.escape(row["stderr"]).replace(chr(10), "<br>")}</div>'
             diff_html = ""
             if row["diff_b64"]:
                 diff_str = base64.b64decode(row["diff_b64"]).decode()
                 diff_html = f'<pre class="diff">{_colorize_diff_html(diff_str)}</pre>'
             stdout_html = ""
             if row.get("stdout"):
-                stdout_html = f'<pre class="stdout-block">{html.escape(row["stdout"])}</pre>'
+                stdout_html = f'<div class="stdout-block">{html.escape(row["stdout"]).replace(chr(10), "<br>")}</div>'
 
             if not row["passed"]:
                 suite_failures.append(
