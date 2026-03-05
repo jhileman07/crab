@@ -55,7 +55,7 @@ class CrabServerWriter(ComposeWriter):
     def write(self, tabs: list[tuple[str, pl.DataFrame]]) -> None:
         html_text = _render_html_tabbed(tabs)
         response = requests.post(
-            os.getenv("API_URL_BASE"),
+            str(self.path),
             headers={
                 "Authorization": f"Bearer {os.getenv('CRAB_TOKEN')}",
                 "Content-Type": "text/html",
