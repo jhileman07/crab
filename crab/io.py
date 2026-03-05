@@ -6,6 +6,9 @@ import crab.diff as diff
 
 RED = "\033[31m"
 GREEN = "\033[32m"
+CYAN = "\033[36m"
+YELLOW = "\033[33m"
+DIM = "\033[2m"
 BOLD = "\033[1m"
 UNDERLINE = "\033[4m"
 RESET = "\033[0m"
@@ -15,6 +18,9 @@ USE_COLOR = sys.stdout.isatty()
 if not USE_COLOR:
     RED = ""
     GREEN = ""
+    CYAN = ""
+    YELLOW = ""
+    DIM = ""
     BOLD = ""
     UNDERLINE = ""
     RESET = ""
@@ -61,6 +67,35 @@ def print_diff(str1: str, str2: str) -> None:
     println(diff.unified_diff(str1, str2, fromfile="produced", tofile="expected"))
 
 
+_MAX_CONTENT_LINES = 40
+
+
+def _truncate_lines(text: str) -> str:
+    lines = text.splitlines()
+    if len(lines) <= _MAX_CONTENT_LINES:
+        return text
+    shown = lines[:_MAX_CONTENT_LINES]
+    remaining = len(lines) - _MAX_CONTENT_LINES
+    shown.append(f"{DIM}... {remaining} more line{'s' if remaining != 1 else ''} ...{RESET}")
+    return "\n".join(shown)
+
+
+def _colorize_diff(diff_str: str) -> str:
+    colored = []
+    for line in diff_str.splitlines():
+        if line.startswith("+++") or line.startswith("---"):
+            colored.append(f"{BOLD}{line}{RESET}")
+        elif line.startswith("+"):
+            colored.append(f"{GREEN}{line}{RESET}")
+        elif line.startswith("-"):
+            colored.append(f"{RED}{line}{RESET}")
+        elif line.startswith("@@"):
+            colored.append(f"{CYAN}{line}{RESET}")
+        else:
+            colored.append(line)
+    return "\n".join(colored)
+
+
 def _box_width() -> int:
     return shutil.get_terminal_size((80, 24)).columns
 
@@ -75,12 +110,16 @@ def _box_top(label: str, width: int) -> str:
     return f"┌{'─' * inner}┐"
 
 
+_ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+
+
 def _box_sep(label: str, width: int) -> str:
     # ├─ label ──...──┤
     inner = width - 2
     if label:
         header = f"─ {label} "
-        fill = "─" * max(0, inner - len(header))
+        visible_len = len(_ansi_escape.sub("", header))
+        fill = "─" * max(0, inner - visible_len)
         return f"├{header}{fill}┤"
     return f"├{'─' * inner}┤"
 
@@ -93,9 +132,8 @@ def _box_row(text: str, width: int) -> str:
     inner = width - 4  # │ <content> │
     lines = text.splitlines() or [""]
     rows = []
-    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
     for line in lines:
-        visible_len = len(ansi_escape.sub("", line))
+        visible_len = len(_ansi_escape.sub("", line))
         padding = max(0, inner - visible_len)
         rows.append(f"│ {line}{' ' * padding} │")
     return "\n".join(rows)
@@ -114,12 +152,12 @@ def print_failure_box(
     if stderr:
         parts.append(_box_row(f"{RED}Err:{RESET} {stderr}", w))
         parts.append(_box_sep("", w))
-    parts.append(_box_sep("Produced", w))
-    parts.append(_box_row(produced or "(empty)", w))
-    parts.append(_box_sep("Expected", w))
-    parts.append(_box_row(expected or "(empty)", w))
-    parts.append(_box_sep("Diff", w))
+    parts.append(_box_sep(f"{RED}Produced{RESET}", w))
+    parts.append(_box_row(_truncate_lines(produced) if produced else f"{DIM}(empty){RESET}", w))
+    parts.append(_box_sep(f"{GREEN}Expected{RESET}", w))
+    parts.append(_box_row(_truncate_lines(expected) if expected else f"{DIM}(empty){RESET}", w))
+    parts.append(_box_sep(f"{CYAN}Diff{RESET}", w))
     diff_str = diff.unified_diff(produced, expected, fromfile="produced", tofile="expected")
-    parts.append(_box_row(diff_str, w))
+    parts.append(_box_row(_colorize_diff(diff_str), w))
     parts.append(_box_bottom(w))
     println("\n".join(parts))

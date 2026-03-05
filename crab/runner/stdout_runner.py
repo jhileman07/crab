@@ -159,9 +159,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
                         io.println(f"Command to reproduce: {precommand0}")
                         io.println(f"Precommand failed, error: {err}")
                     failed += 1
-                    rows.append(
-                        self._make_row(test=test_name, passed=False, all_times=[], stderr=err, diff_b64=None)
-                    )
+                    rows.append(self._make_row(test=test_name, passed=False, all_times=[], stderr=err, diff_b64=None))
                     if self.verbosity == Verbosity.FIRST_FAIL or self.verbosity == Verbosity.FAIL_ON_COMPILE_ERROR:
                         break
                     continue
@@ -180,9 +178,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
                 io.print_ok(all_files_str, all_times, end="\n" if self.verbosity >= Verbosity.HIGH else "")
                 passed += 1
                 rows.append(
-                    self._make_row(
-                        test=test_name, passed=True, all_times=all_times, stderr=combined_err, diff_b64=None
-                    )
+                    self._make_row(test=test_name, passed=True, all_times=all_times, stderr=combined_err, diff_b64=None)
                 )
                 continue
 
