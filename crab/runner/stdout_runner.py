@@ -155,6 +155,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
         rows = []
         for input0, output0, precommand0, command0, files in zip(inputs, outputs, pre_commands, commands, cproduct):
             all_files_str = ", ".join(files)
+            test_name = ", ".join(Path(f).name for f in files)
             io.printr(f"Running test {all_files_str}")
             program_input = io.read(input0) if input0 is not None and Path(input0).is_file() else ""
 
@@ -167,7 +168,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
                         io.println(f"Precommand failed, error: {err}")
                     failed += 1
                     rows.append(
-                        self._make_row(test=all_files_str, passed=False, all_times=[], stderr=err, diff_b64=None)
+                        self._make_row(test=test_name, passed=False, all_times=[], stderr=err, diff_b64=None)
                     )
                     if self.verbosity == Verbosity.FIRST_FAIL or self.verbosity == Verbosity.FAIL_ON_COMPILE_ERROR:
                         break
@@ -188,7 +189,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
                 passed += 1
                 rows.append(
                     self._make_row(
-                        test=all_files_str, passed=True, all_times=all_times, stderr=combined_err, diff_b64=None
+                        test=test_name, passed=True, all_times=all_times, stderr=combined_err, diff_b64=None
                     )
                 )
                 continue
@@ -198,7 +199,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
             failed_tests.append(all_files_str)
             rows.append(
                 self._make_row(
-                    test=all_files_str,
+                    test=test_name,
                     passed=False,
                     all_times=all_times,
                     stderr=combined_err,
