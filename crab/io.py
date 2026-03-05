@@ -139,6 +139,16 @@ def _box_row(text: str, width: int) -> str:
     return "\n".join(rows)
 
 
+def print_precommand_failure_box(precommand: str, stderr: str) -> None:
+    w = _box_width()
+    parts = [_box_top(f"Command: {precommand}", w)]
+    parts.append(_box_row(f"{RED}Precommand failed{RESET}", w))
+    parts.append(_box_sep("", w))
+    parts.append(_box_row(stderr, w))
+    parts.append(_box_bottom(w))
+    println("\n".join(parts))
+
+
 def print_failure_box(
     precommand: str | None,
     command: str,

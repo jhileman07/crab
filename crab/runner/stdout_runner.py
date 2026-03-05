@@ -155,11 +155,10 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
                 _, err, _ = shell.run(precommand0, folder=self.path)
                 if err:
                     io.print_fail(all_files_str, 0)
-                    if self.verbosity > Verbosity.NOT:
-                        io.println(f"Command to reproduce: {precommand0}")
-                        io.println(f"Precommand failed, error: {err}")
                     failed += 1
                     rows.append(self._make_row(test=test_name, passed=False, all_times=[], stderr=err, diff_b64=None))
+                    if self.verbosity > Verbosity.NOT:
+                        io.print_precommand_failure_box(precommand0, err)
                     if self.verbosity == Verbosity.FIRST_FAIL or self.verbosity == Verbosity.FAIL_ON_COMPILE_ERROR:
                         break
                     continue
