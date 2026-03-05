@@ -100,26 +100,98 @@ def _box_width() -> int:
     return shutil.get_terminal_size((80, 24)).columns
 
 
+_ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _visible_len(s: str) -> int:
+    return len(_ansi_escape.sub("", s))
+
+
+def _truncate_label(label: str, max_visible: int) -> str:
+    if _visible_len(label) <= max_visible:
+        return label
+    # Trim to max_visible - 1 visible chars and add ellipsis
+    result = ""
+    count = 0
+    i = 0
+    while i < len(label):
+        m = _ansi_escape.match(label, i)
+        if m:
+            result += m.group()
+            i = m.end()
+        else:
+            if count >= max_visible - 1:
+                break
+            result += label[i]
+            count += 1
+            i += 1
+    return result + "…"
+
+
+def _hard_wrap(line: str, width: int) -> list[str]:
+    """Split a single line into segments of at most `width` visible characters."""
+    segments = []
+    current = ""
+    visible_count = 0
+    i = 0
+    while i < len(line):
+        m = _ansi_escape.match(line, i)
+        if m:
+            current += m.group()
+            i = m.end()
+        else:
+            if visible_count >= width:
+                segments.append(current)
+                current = ""
+                visible_count = 0
+            current += line[i]
+            visible_count += 1
+            i += 1
+    segments.append(current)
+    return segments
+
+
+def _wrap_line(line: str, width: int) -> list[str]:
+    if _visible_len(line) <= width:
+        return [line]
+    # Try splitting on ": " first (covers "key: value: detail" patterns)
+    parts = line.split(": ")
+    if len(parts) > 1:
+        segments = [parts[0] + ":"]
+        for part in parts[1:]:
+            segments.append("  " + part + ":")
+        segments[-1] = segments[-1][:-1]  # remove trailing colon from last segment
+        result = []
+        for seg in segments:
+            result.extend(_hard_wrap(seg, width))
+        return result
+    return _hard_wrap(line, width)
+
+
 def _box_top(label: str, width: int) -> str:
     # ┌─ label ──...──┐
     inner = width - 2  # exclude corner chars
     if label:
-        header = f"─ {label} "
-        fill = "─" * max(0, inner - len(header))
+        prefix = "─ "
+        suffix = " "
+        max_label = inner - len(prefix) - len(suffix) - 1  # leave room for ≥1 trailing dash
+        truncated = _truncate_label(label, max_label)
+        header = f"{prefix}{truncated}{suffix}"
+        fill = "─" * max(0, inner - _visible_len(header))
         return f"┌{header}{fill}┐"
     return f"┌{'─' * inner}┐"
-
-
-_ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def _box_sep(label: str, width: int) -> str:
     # ├─ label ──...──┤
     inner = width - 2
     if label:
-        header = f"─ {label} "
-        visible_len = len(_ansi_escape.sub("", header))
-        fill = "─" * max(0, inner - visible_len)
+        prefix = "─ "
+        suffix = " "
+        max_label = inner - len(prefix) - len(suffix) - 1
+        truncated = _truncate_label(label, max_label)
+        header = f"{prefix}{truncated}{suffix}"
+        fill = "─" * max(0, inner - _visible_len(header))
         return f"├{header}{fill}┤"
     return f"├{'─' * inner}┤"
 
@@ -133,9 +205,9 @@ def _box_row(text: str, width: int) -> str:
     lines = text.splitlines() or [""]
     rows = []
     for line in lines:
-        visible_len = len(_ansi_escape.sub("", line))
-        padding = max(0, inner - visible_len)
-        rows.append(f"│ {line}{' ' * padding} │")
+        for segment in _wrap_line(line, inner):
+            padding = max(0, inner - _visible_len(segment))
+            rows.append(f"│ {segment}{' ' * padding} │")
     return "\n".join(rows)
 
 

@@ -3,4 +3,7 @@ import sys
 
 
 def main():
-    sys.exit(subprocess.call([sys.executable, "Crabfile"]))
+    try:
+        sys.exit(subprocess.call([sys.executable, "Crabfile"]))
+    except KeyboardInterrupt:
+        sys.exit(130)
