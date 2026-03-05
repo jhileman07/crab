@@ -1,3 +1,5 @@
+import re
+import shutil
 import sys
 
 import crab.diff as diff
@@ -57,3 +59,67 @@ def print_fail(input: str, time: float | None = None) -> None:
 
 def print_diff(str1: str, str2: str) -> None:
     println(diff.unified_diff(str1, str2, fromfile="produced", tofile="expected"))
+
+
+def _box_width() -> int:
+    return shutil.get_terminal_size((80, 24)).columns
+
+
+def _box_top(label: str, width: int) -> str:
+    # ┌─ label ──...──┐
+    inner = width - 2  # exclude corner chars
+    if label:
+        header = f"─ {label} "
+        fill = "─" * max(0, inner - len(header))
+        return f"┌{header}{fill}┐"
+    return f"┌{'─' * inner}┐"
+
+
+def _box_sep(label: str, width: int) -> str:
+    # ├─ label ──...──┤
+    inner = width - 2
+    if label:
+        header = f"─ {label} "
+        fill = "─" * max(0, inner - len(header))
+        return f"├{header}{fill}┤"
+    return f"├{'─' * inner}┤"
+
+
+def _box_bottom(width: int) -> str:
+    return f"└{'─' * (width - 2)}┘"
+
+
+def _box_row(text: str, width: int) -> str:
+    inner = width - 4  # │ <content> │
+    lines = text.splitlines() or [""]
+    rows = []
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    for line in lines:
+        visible_len = len(ansi_escape.sub("", line))
+        padding = max(0, inner - visible_len)
+        rows.append(f"│ {line}{' ' * padding} │")
+    return "\n".join(rows)
+
+
+def print_failure_box(
+    precommand: str | None,
+    command: str,
+    stderr: str | None,
+    produced: str,
+    expected: str,
+) -> None:
+    w = _box_width()
+    cmd_str = f"{precommand} && {command}" if precommand else command
+    parts = [_box_top(f"Command: {cmd_str}", w)]
+    if stderr:
+        parts.append(_box_row(f"{RED}Err:{RESET} {stderr}", w))
+        parts.append(_box_sep("", w))
+    parts.append(_box_sep("Produced", w))
+    parts.append(_box_row(produced or "(empty)", w))
+    parts.append(_box_sep("Expected", w))
+    parts.append(_box_row(expected or "(empty)", w))
+    parts.append(_box_sep("Diff", w))
+    diff_str = diff.unified_diff(produced, expected, fromfile="produced", tofile="expected")
+    parts.append(_box_row(diff_str, w))
+    parts.append(_box_bottom(w))
+    println("\n".join(parts))

@@ -118,15 +118,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
     def _print_failure_details(
         self, precommand0, command0: str, stderr: str | None, produced: str, expected: str
     ) -> None:
-        if stderr:
-            io.println(f"Err: {stderr}")
-        io.println(f"Command to reproduce: {precommand0} && {command0}")
-        io.println("Produced:")
-        io.println(produced)
-        io.println("Expected:")
-        io.println(expected)
-        io.println("Diff:")
-        io.print_diff(produced, expected)
+        io.print_failure_box(precommand0, command0, stderr, produced, expected)
 
     def _to_dataframe(self, rows: list[dict]) -> pl.DataFrame:
         return pl.DataFrame(
