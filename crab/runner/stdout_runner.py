@@ -156,6 +156,11 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
             io.println(f"Skipping disabled suite: {self.name}")
             return self._empty_df()
 
+        _filter = os.environ.get("CRAB_FILTER")
+        if _filter and _filter not in self.name:
+            io.println(f"Skipping suite (filtered): {self.name}")
+            return self._empty_df()
+
         cproduct, inputs, outputs, pre_commands, commands = self._build_test_cases()
 
         io.println(f"Running tests for suite {self.name}")

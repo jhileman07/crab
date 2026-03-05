@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Self
 
 import polars as pl
 
@@ -14,16 +15,24 @@ class Composer:
     def __init__(self, writer: ComposeWriter) -> None:
         self.writer = writer
         self._entries: list[tuple[str, Path]] = []
+        self._filter: str | None = None
 
-    def add(self, crabfile: str | Path, label: str | None = None) -> None:
+    def add(self, crabfile: str | Path, label: str | None = None) -> Self:
         p = Path(crabfile)
         self._entries.append((label if label is not None else p.name, p))
+        return self
+
+    def with_filter(self, pattern: str) -> Self:
+        self._filter = pattern
+        return self
 
     def run(self) -> None:
         results: list[tuple[str, pl.DataFrame]] = []
         for label, path in self._entries:
             tmp_dir = Path(tempfile.mkdtemp(prefix="crab_"))
             env = {**os.environ, "CRAB_COMPOSE_OUTPUT": str(tmp_dir)}
+            if self._filter is not None:
+                env["CRAB_FILTER"] = self._filter
             try:
                 ret = subprocess.call([sys.executable, str(path.resolve())], env=env, cwd=path.parent)
                 parquet_files = sorted(tmp_dir.glob("*.parquet"))
