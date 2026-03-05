@@ -54,6 +54,7 @@ summary { cursor: pointer; padding: 0.6rem 1rem; background: #fff0f0; font-weigh
 summary:hover { background: #ffe4e4; }
 .detail-body { padding: 0.75rem 1rem; }
 .stderr-block { background: #fff8f0; border-left: 3px solid #f90; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; white-space: pre-wrap; }
+.stdout-block { background: #f8f8f8; border-left: 3px solid #88c; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; white-space: pre-wrap; font-family: monospace; }
 pre.diff { background: #f8f8f8; border: 1px solid #ddd; border-radius: 3px; padding: 0.75rem; font-size: 0.82rem; overflow-x: auto; white-space: pre; line-height: 1.4; }
 .diff-add { color: #2a7; background: #eaffea; display: block; }
 .diff-del { color: #c33; background: #fff0f0; display: block; }
@@ -123,8 +124,6 @@ def _render_body(df: pl.DataFrame) -> str:
 
         suite_failures = []
         for row in rows:
-            if row["passed"]:
-                continue
             test_name = html.escape(row["test"])
             stderr_html = ""
             if row["stderr"]:
@@ -133,9 +132,18 @@ def _render_body(df: pl.DataFrame) -> str:
             if row["diff_b64"]:
                 diff_str = base64.b64decode(row["diff_b64"]).decode()
                 diff_html = f'<pre class="diff">{_colorize_diff_html(diff_str)}</pre>'
-            suite_failures.append(
-                f'<details><summary>{test_name}</summary><div class="detail-body">{stderr_html}{diff_html}</div></details>'
-            )
+            stdout_html = ""
+            if row.get("stdout"):
+                stdout_html = f'<div class="stdout-block">{html.escape(row["stdout"])}</div>'
+
+            if not row["passed"]:
+                suite_failures.append(
+                    f'<details><summary>{test_name}</summary><div class="detail-body">{stderr_html}{diff_html}</div></details>'
+                )
+            elif stdout_html or stderr_html:
+                suite_failures.append(
+                    f'<details><summary>{test_name}</summary><div class="detail-body">{stderr_html}{stdout_html}</div></details>'
+                )
 
         if suite_failures:
             suite_heading = f"<h3>{html.escape(suite)}</h3>" if multi else ""
@@ -143,7 +151,7 @@ def _render_body(df: pl.DataFrame) -> str:
 
     failures_html = ""
     if failure_sections:
-        failures_html = "<h2>Failures</h2>" + "\n".join(failure_sections)
+        failures_html = "<h2>Details</h2>" + "\n".join(failure_sections)
 
     return "\n".join(sections) + "\n" + failures_html
 

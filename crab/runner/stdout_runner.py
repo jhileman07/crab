@@ -113,7 +113,13 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
         return all_times, last_out, combined_err
 
     def _make_row(
-        self, test: str, passed: bool, all_times: list[float], stderr: str | None, diff_b64: bytes | None
+        self,
+        test: str,
+        passed: bool,
+        all_times: list[float],
+        stderr: str | None,
+        diff_b64: bytes | None,
+        stdout: str | None = None,
     ) -> dict:
         return {
             "suite": self.name,
@@ -125,6 +131,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
             "time_all_s": all_times,
             "stderr": stderr,
             "diff_b64": diff_b64,
+            "stdout": stdout,
         }
 
     def _print_failure_details(
@@ -145,6 +152,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
                 "time_all_s": pl.List(pl.Float64),
                 "stderr": pl.String,
                 "diff_b64": pl.Binary,
+                "stdout": pl.String,
             },
         )
 
@@ -191,12 +199,28 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
             all_times, last_out, combined_err = self._execute(command0, program_input)
             time_elapsed += sum(all_times)
 
-            expected_output = io.read(output0).strip() if output0 is not None else ""
-            if expected_output != "" and self.pre_process is not None:
-                expected_output = self.pre_process(expected_output)
             processed_output = (
                 self.post_process(last_out.strip()) if self.post_process is not None else last_out.strip()
             )
+
+            if output0 is None:
+                io.print_ok(all_files_str, all_times, end="\n" if self.verbosity >= Verbosity.HIGH else "")
+                passed += 1
+                rows.append(
+                    self._make_row(
+                        test=test_name,
+                        passed=True,
+                        all_times=all_times,
+                        stderr=combined_err,
+                        diff_b64=None,
+                        stdout=processed_output or None,
+                    )
+                )
+                continue
+
+            expected_output = io.read(output0).strip()
+            if expected_output != "" and self.pre_process is not None:
+                expected_output = self.pre_process(expected_output)
 
             if processed_output == expected_output:
                 io.print_ok(all_files_str, all_times, end="\n" if self.verbosity >= Verbosity.HIGH else "")
