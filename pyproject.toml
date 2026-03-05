@@ -18,5 +18,8 @@ dev = [
 [tool.ruff]
 line-length = 120
 
+[tool.ruff.format]
+quote-style = "double"
+
 [project.scripts]
 crab = "crab.cli:main"

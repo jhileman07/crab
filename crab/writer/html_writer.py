@@ -62,13 +62,40 @@ h2 { font-size: 1.2rem; margin-top: 2rem; }
 """
 
 
-def _render_html(df: pl.DataFrame) -> str:
-    total = len(df)
-    passed = df["passed"].sum()
-    failed = total - passed
-    total_time = df["time_mean_s"].sum()
+def _render_table(rows: list[dict]) -> str:
+    table_rows = []
+    for row in rows:
+        badge = '<span class="badge-pass">PASS</span>' if row["passed"] else '<span class="badge-fail">FAIL</span>'
+        mean_t = _fmt_time(row["time_mean_s"]) if row["time_mean_s"] else "—"
+        if row["stderr"]:
+            lines = row["stderr"].splitlines()
+            truncated = lines[:5]
+            suffix = "\n..." if len(lines) > 5 else ""
+            stderr_cell = html.escape("\n".join(truncated)) + suffix
+        else:
+            stderr_cell = ""
+        table_rows.append(
+            "<tr>"
+            f"<td>{html.escape(row['test'])}</td>"
+            f"<td>{badge}</td>"
+            f'<td class="timing">{mean_t}</td>'
+            f'<td style="white-space: pre-wrap">{stderr_cell}</td>'
+            "</tr>"
+        )
+    return (
+        "<table>"
+        "<thead><tr><th>Test</th><th>Result</th><th>Mean Time</th><th>Stderr</th></tr></thead>"
+        "<tbody>" + "\n".join(table_rows) + "</tbody>"
+        "</table>"
+    )
 
-    summary_html = (
+
+def _render_summary(rows: list[dict]) -> str:
+    total = len(rows)
+    passed = sum(1 for r in rows if r["passed"])
+    failed = total - passed
+    total_time = sum(r["time_mean_s"] for r in rows)
+    return (
         '<div class="summary">'
         f'<span class="pass-count">Passed: {passed}/{total}</span>'
         f'<span class="fail-count">Failed: {failed}</span>'
@@ -76,46 +103,48 @@ def _render_html(df: pl.DataFrame) -> str:
         "</div>"
     )
 
-    table_rows = []
-    for row in df.iter_rows(named=True):
-        badge = '<span class="badge-pass">PASS</span>' if row["passed"] else '<span class="badge-fail">FAIL</span>'
-        mean_t = _fmt_time(row["time_mean_s"]) if row["time_mean_s"] else "—"
-        stderr_cell = html.escape(row["stderr"]) if row["stderr"] else ""
-        table_rows.append(
-            "<tr>"
-            f"<td>{html.escape(row['test'])}</td>"
-            f"<td>{badge}</td>"
-            f'<td class="timing">{mean_t}</td>'
-            f"<td>{stderr_cell}</td>"
-            "</tr>"
-        )
-    table_html = (
-        "<table>"
-        "<thead><tr><th>Test</th><th>Result</th><th>Mean Time</th><th>Stderr</th></tr></thead>"
-        "<tbody>" + "\n".join(table_rows) + "</tbody>"
-        "</table>"
-    )
 
-    failure_sections = []
+def _render_body(df: pl.DataFrame) -> str:
+    suites: dict[str, list[dict]] = {}
     for row in df.iter_rows(named=True):
-        if row["passed"]:
-            continue
-        test_name = html.escape(row["test"])
-        stderr_html = ""
-        if row["stderr"]:
-            stderr_html = f'<div class="stderr-block">{html.escape(row["stderr"])}</div>'
-        diff_html = ""
-        if row["diff_b64"]:
-            diff_str = base64.b64decode(row["diff_b64"]).decode()
-            diff_html = f'<pre class="diff">{_colorize_diff_html(diff_str)}</pre>'
-        failure_sections.append(
-            f'<details><summary>{test_name}</summary><div class="detail-body">{stderr_html}{diff_html}</div></details>'
-        )
+        suites.setdefault(row["suite"], []).append(row)
+
+    multi = len(suites) > 1
+
+    sections = []
+    failure_sections = []
+    for suite, rows in suites.items():
+        heading = f"<h2>{html.escape(suite)}</h2>" if multi else ""
+        sections.append(heading + _render_summary(rows) + _render_table(rows))
+
+        suite_failures = []
+        for row in rows:
+            if row["passed"]:
+                continue
+            test_name = html.escape(row["test"])
+            stderr_html = ""
+            if row["stderr"]:
+                stderr_html = f'<div class="stderr-block">{html.escape(row["stderr"])}</div>'
+            diff_html = ""
+            if row["diff_b64"]:
+                diff_str = base64.b64decode(row["diff_b64"]).decode()
+                diff_html = f'<pre class="diff">{_colorize_diff_html(diff_str)}</pre>'
+            suite_failures.append(
+                f'<details><summary>{test_name}</summary><div class="detail-body">{stderr_html}{diff_html}</div></details>'
+            )
+
+        if suite_failures:
+            suite_heading = f"<h3>{html.escape(suite)}</h3>" if multi else ""
+            failure_sections.append(suite_heading + "\n".join(suite_failures))
 
     failures_html = ""
     if failure_sections:
         failures_html = "<h2>Failures</h2>" + "\n".join(failure_sections)
 
+    return "\n".join(sections) + "\n" + failures_html
+
+
+def _render_html(df: pl.DataFrame) -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -125,9 +154,7 @@ def _render_html(df: pl.DataFrame) -> str:
 </head>
 <body>
 <h1>Test Results</h1>
-{summary_html}
-{table_html}
-{failures_html}
+{_render_body(df)}
 </body>
 </html>
 """

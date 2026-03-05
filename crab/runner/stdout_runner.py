@@ -1,8 +1,9 @@
+import os
 import statistics
+import uuid
 from enum import IntEnum
 from itertools import product
 from pathlib import Path
-from typing import Optional
 
 import polars as pl
 
@@ -30,6 +31,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
         argc: int = 1,
         verbosity: Verbosity = Verbosity.NOT,
         output_writer: OutputWriter | None = None,
+        name: str | None = None,
     ):
         self.folder = folder
         self.argc = argc
@@ -37,6 +39,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
         self.output_writer = output_writer
         self.repeat_count = 1
         self.path = "./"
+        self.name = name if name is not None else folder
 
         self.pre_command = None
         self.command = None
@@ -45,7 +48,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
         self.pre_process = None
         self.post_process = None
 
-        self.args: Optional[list[str]] = None
+        self.args: list[str] | None = None
 
     def with_pre_command(self, fn) -> None:
         self.pre_command = fn
@@ -113,6 +116,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
         self, test: str, passed: bool, all_times: list[float], stderr: str | None, diff_b64: bytes | None
     ) -> dict:
         return {
+            "suite": self.name,
             "test": test,
             "passed": passed,
             "time_mean_s": statistics.mean(all_times) if all_times else 0.0,
@@ -132,6 +136,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
         return pl.DataFrame(
             rows,
             schema={
+                "suite": pl.String,
                 "test": pl.String,
                 "passed": pl.Boolean,
                 "time_mean_s": pl.Float64,
@@ -143,10 +148,17 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
             },
         )
 
+    def _empty_df(self) -> pl.DataFrame:
+        return self._to_dataframe([])
+
     def run(self) -> pl.DataFrame:
+        if self.name.startswith("DISABLED"):
+            io.println(f"Skipping disabled suite: {self.name}")
+            return self._empty_df()
+
         cproduct, inputs, outputs, pre_commands, commands = self._build_test_cases()
 
-        io.println(f"Running tests for suite {self.folder}")
+        io.println(f"Running tests for suite {self.name}")
 
         failed = 0
         failed_tests = []
@@ -220,4 +232,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
         df = self._to_dataframe(rows)
         if self.output_writer is not None:
             self.output_writer.write(df)
+        _compose_out = os.environ.get("CRAB_COMPOSE_OUTPUT")
+        if _compose_out:
+            df.write_parquet(Path(_compose_out) / f"{uuid.uuid4().hex}.parquet")
         return df
