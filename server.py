@@ -6,12 +6,17 @@ to index.html. Nginx serves index.html statically.
 Usage:
     CRAB_TOKEN=secret python server.py [--port 8765] [--out index.html]
 """
+
 import argparse
 import hmac
 import os
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def make_handler(token: str, path: Path):

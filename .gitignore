@@ -1,3 +1,5 @@
+*.html
+*.swp
 *.env
 .DS_Store
 .ruff_cache/

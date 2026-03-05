@@ -1,11 +1,16 @@
 import base64
 import json
+import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 import polars as pl
+import requests
+from dotenv import load_dotenv
 
 from .html_writer import _CSS, _render_body
+
+load_dotenv()
 
 
 class ComposeWriter(ABC):
@@ -44,6 +49,20 @@ class JsonComposeWriter(ComposeWriter):
 class HtmlComposeWriter(ComposeWriter):
     def write(self, tabs: list[tuple[str, pl.DataFrame]]) -> None:
         self.path.write_text(_render_html_tabbed(tabs), encoding="utf-8")
+
+
+class CrabServerWriter(ComposeWriter):
+    def write(self, tabs: list[tuple[str, pl.DataFrame]]) -> None:
+        html_text = _render_html_tabbed(tabs)
+        response = requests.post(
+            "https://crab.pomelo.ams.andrewli.org/update",
+            headers={
+                "Authorization": f"Bearer {os.getenv('CRAB_TOKEN')}",
+                "Content-Type": "text/html",
+            },
+            data=html_text,
+        )
+        print(response.text)
 
 
 def _render_html_tabbed(tabs: list[tuple[str, pl.DataFrame]]) -> str:
