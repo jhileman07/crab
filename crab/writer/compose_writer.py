@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 from .html_writer import _CSS, _render_body
 
-load_dotenv()
+load_dotenv(Path.cwd() / ".env")
 
 
 class ComposeWriter(ABC):
@@ -68,10 +68,12 @@ class CrabServerWriter(ComposeWriter):
             headers={
                 "Authorization": f"Bearer {os.getenv('CRAB_TOKEN')}",
                 "Content-Type": "text/html",
+                "Content-Length": str(len(html_text)),
             },
             data=html_text,
+            timeout=10,
         )
-        print(response.text)
+        print(response.status_code)
 
 
 def _render_html_tabbed(tabs: list[tuple[str, pl.DataFrame]]) -> str:
