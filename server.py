@@ -7,6 +7,7 @@ Usage:
 """
 
 import argparse
+import gzip
 import hmac
 import os
 import sys
@@ -35,6 +36,8 @@ def make_handler(token: str, path: Path, ttl: int):
 
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length)
+            if self.headers.get("Content-Encoding") == "gzip":
+                body = gzip.decompress(body)
 
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)

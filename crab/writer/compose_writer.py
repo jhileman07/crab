@@ -1,9 +1,11 @@
 import base64
+import gzip
 import json
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+import minify_html
 import polars as pl
 import requests
 from dotenv import load_dotenv
@@ -63,12 +65,15 @@ class CrabServerWriter(ComposeWriter):
     def write(self, tabs: list[tuple[str, pl.DataFrame]]) -> None:
         assert isinstance(self.path, str)
         html_text = _render_html_tabbed(tabs)
+        html_text = minify_html.minify(html_text, minify_js=True, minify_css=True)
+        html_text = gzip.compress(html_text.encode())
         response = requests.post(
             str(self.path),
             headers={
                 "Authorization": f"Bearer {os.getenv('CRAB_TOKEN')}",
                 "Content-Type": "text/html",
                 "Content-Length": str(len(html_text)),
+                "Content-Encoding": "gzip",
             },
             data=html_text,
             timeout=10,
