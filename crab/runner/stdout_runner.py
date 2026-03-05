@@ -1,9 +1,12 @@
-import time
+import statistics
 from enum import IntEnum
 from itertools import product
 from pathlib import Path
 from typing import Optional
 
+import polars as pl
+
+import crab.diff as diff
 import crab.io as io
 import crab.shell as shell
 import crab.tool as tool
@@ -19,11 +22,12 @@ class Verbosity(IntEnum):
     HIGH = 4
 
 
-class StdoutRunner(BaseRunner):
+class StdoutRunner(BaseRunner[pl.DataFrame]):
     def __init__(self, folder: str, argc: int = 1, verbosity: Verbosity = Verbosity.NOT):
         self.folder = folder
         self.argc = argc
         self.verbosity = verbosity
+        self.repeat_count = 1
         self.path = "./"
 
         self.pre_command = None
@@ -55,6 +59,9 @@ class StdoutRunner(BaseRunner):
         if not tool.has_arity(self.output, self.argc)[0]:
             raise ValueError(f"self.output must be a function of arity {self.argc}")
 
+    def with_repeat_count(self, n: int) -> None:
+        self.repeat_count = n
+
     def with_args(self, *args: str) -> None:
         num_args = len(args)
         if num_args != self.argc:
@@ -70,7 +77,7 @@ class StdoutRunner(BaseRunner):
     def cd(self, path: str) -> None:
         self.path = path
 
-    def run(self) -> None:
+    def _build_test_cases(self):
         # ! Precondition: all lambdas have the correct arity
         if self.command is None:
             raise ValueError("Cannot run shell tests without a command")
@@ -78,15 +85,66 @@ class StdoutRunner(BaseRunner):
             raise ValueError("Insufficient arguments provided to run tests")
 
         files = [tool.get_files(Path(self.path) / self.folder, arg) for arg in self.args]
-
         if self.argc == 1:
             files = [sorted(files[0], key=lambda f: Path(f).stat().st_size)]
-
         cproduct = list(product(*files))
         inputs = [self.input(*f) if self.input else None for f in cproduct]
         outputs = [self.output(*f) if self.output else None for f in cproduct]
         pre_commands = [self.pre_command(*f) if self.pre_command else None for f in cproduct]
         commands = [self.command(*f) for f in cproduct]
+        return cproduct, inputs, outputs, pre_commands, commands
+
+    def _execute(self, command0: str, program_input: str) -> tuple[list[float], str, str | None]:
+        results = [shell.run(command0, input=program_input, folder=self.path) for _ in range(self.repeat_count)]
+        all_times = [dt for _, _, dt in results]
+        last_out = next((out for out, _, _ in reversed(results) if out), "")
+        combined_err = "\n".join(err for _, err, _ in results if err) or None
+        return all_times, last_out, combined_err
+
+    def _make_row(
+        self, test: str, passed: bool, all_times: list[float], stderr: str | None, diff_b64: bytes | None
+    ) -> dict:
+        return {
+            "test": test,
+            "passed": passed,
+            "time_mean_s": statistics.mean(all_times) if all_times else 0.0,
+            "time_min_s": min(all_times) if all_times else 0.0,
+            "time_max_s": max(all_times) if all_times else 0.0,
+            "time_all_s": all_times,
+            "stderr": stderr,
+            "diff_b64": diff_b64,
+        }
+
+    def _print_failure_details(
+        self, precommand0, command0: str, stderr: str | None, produced: str, expected: str
+    ) -> None:
+        if stderr:
+            io.println(f"Err: {stderr}")
+        io.println(f"Command to reproduce: {precommand0} && {command0}")
+        io.println("Produced:")
+        io.println(produced)
+        io.println("Expected:")
+        io.println(expected)
+        io.println("Diff:")
+        io.print_diff(produced, expected)
+
+    def _to_dataframe(self, rows: list[dict]) -> pl.DataFrame:
+        return pl.DataFrame(
+            rows,
+            schema={
+                "test": pl.String,
+                "passed": pl.Boolean,
+                "time_mean_s": pl.Float64,
+                "time_min_s": pl.Float64,
+                "time_max_s": pl.Float64,
+                "time_all_s": pl.List(pl.Float64),
+                "stderr": pl.String,
+                "diff_b64": pl.Binary,
+            },
+        )
+
+    def run(self) -> pl.DataFrame:
+        cproduct, inputs, outputs, pre_commands, commands = self._build_test_cases()
 
         io.println(f"Running tests for suite {self.folder}")
 
@@ -94,60 +152,66 @@ class StdoutRunner(BaseRunner):
         failed_tests = []
         passed = 0
         time_elapsed = 0.0
+        rows = []
         for input0, output0, precommand0, command0, files in zip(inputs, outputs, pre_commands, commands, cproduct):
             all_files_str = ", ".join(files)
             io.printr(f"Running test {all_files_str}")
-            program_input = ""
-            if input0 is not None and Path(input0).is_file():
-                program_input = io.read(input0)
+            program_input = io.read(input0) if input0 is not None and Path(input0).is_file() else ""
 
             if precommand0 is not None:
-                _, err = shell.run(precommand0, folder=self.path)
+                _, err, _ = shell.run(precommand0, folder=self.path)
                 if err:
                     io.print_fail(all_files_str, 0)
                     if self.verbosity > Verbosity.NOT:
                         io.println(f"Command to reproduce: {precommand0}")
                         io.println(f"Precommand failed, error: {err}")
                     failed += 1
+                    rows.append(
+                        self._make_row(test=all_files_str, passed=False, all_times=[], stderr=err, diff_b64=None)
+                    )
                     if self.verbosity == Verbosity.FIRST_FAIL or self.verbosity == Verbosity.FAIL_ON_COMPILE_ERROR:
                         break
                     continue
 
-            test_start_time = time.time()
-            out, err = shell.run(command0, input=program_input, folder=self.path)
-            test_end_time = time.time()
-            time_elapsed += test_end_time - test_start_time
+            all_times, last_out, combined_err = self._execute(command0, program_input)
+            time_elapsed += sum(all_times)
 
             expected_output = io.read(output0).strip() if output0 is not None else ""
             if expected_output != "" and self.pre_process is not None:
                 expected_output = self.pre_process(expected_output)
-            processed_output = self.post_process(out.strip()) if self.post_process is not None else out.strip()
+            processed_output = (
+                self.post_process(last_out.strip()) if self.post_process is not None else last_out.strip()
+            )
 
             if processed_output == expected_output:
-                io.print_ok(
-                    all_files_str,
-                    test_end_time - test_start_time,
-                    end=("\n" if self.verbosity >= Verbosity.HIGH else ""),
-                )
+                io.print_ok(all_files_str, all_times, end="\n" if self.verbosity >= Verbosity.HIGH else "")
                 passed += 1
+                rows.append(
+                    self._make_row(
+                        test=all_files_str, passed=True, all_times=all_times, stderr=combined_err, diff_b64=None
+                    )
+                )
                 continue
 
-            io.print_fail(all_files_str, test_end_time - test_start_time)
+            io.print_fail(all_files_str, all_times[-1])
             failed += 1
             failed_tests.append(all_files_str)
+            rows.append(
+                self._make_row(
+                    test=all_files_str,
+                    passed=False,
+                    all_times=all_times,
+                    stderr=combined_err,
+                    diff_b64=diff.unified_diff_b64(
+                        expected_output, processed_output, fromfile="expected", tofile="actual"
+                    ),
+                )
+            )
 
             if self.verbosity == Verbosity.NOT:
                 continue
 
-            if err:
-                io.println(f"Err: {err}")
-            io.println(f"Command to reproduce: {precommand0} && {command0}")
-            io.println("Produced:")
-            io.println(processed_output)
-            io.println("Expected:")
-            io.println(expected_output)
-            io.println("Diff:")
-            io.print_diff(processed_output, expected_output)
+            self._print_failure_details(precommand0, command0, combined_err, processed_output, expected_output)
 
             if self.verbosity == Verbosity.FIRST_FAIL:
                 break
@@ -156,3 +220,5 @@ class StdoutRunner(BaseRunner):
         io.println(f"passed: {passed}/{passed + failed}")
         io.println(f"failed: {', '.join(failed_tests) or 'none'}")
         io.println(f"time elapsed: {io.format_time(time_elapsed)}")
+
+        return self._to_dataframe(rows)

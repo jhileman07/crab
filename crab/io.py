@@ -1,5 +1,6 @@
-import difflib
 import sys
+
+import crab.diff as diff
 
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -41,8 +42,11 @@ def format_time(t: float) -> str:
     return f"{t:.3f} s"
 
 
-def print_ok(input: str, time: float | None = None, end: str = "") -> None:
-    time_str = format_time(time) if time is not None else ""
+def print_ok(input: str, time: float | list[float] | None = None, end: str = "") -> None:
+    if isinstance(time, list):
+        time_str = " ".join(format_time(t) for t in time)
+    else:
+        time_str = format_time(time) if time is not None else ""
     echo(f"{BOLD}{UNDERLINE}Test {input}{RESET}    [{GREEN}OK{RESET}] {time_str}{end}")
 
 
@@ -52,11 +56,4 @@ def print_fail(input: str, time: float | None = None) -> None:
 
 
 def print_diff(str1: str, str2: str) -> None:
-    diff = difflib.unified_diff(
-        str1.splitlines(keepends=True),
-        str2.splitlines(keepends=True),
-        fromfile="produced",
-        tofile="expected",
-    )
-
-    println("".join(diff))
+    println(diff.unified_diff(str1, str2, fromfile="produced", tofile="expected"))
