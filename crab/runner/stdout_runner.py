@@ -240,7 +240,7 @@ class StdoutRunner(BaseRunner[pl.DataFrame]):
                     all_times=all_times,
                     stderr=combined_err,
                     diff_b64=diff.unified_diff_b64(
-                        expected_output, processed_output, fromfile="expected", tofile="actual"
+                        processed_output, expected_output, fromfile="actual", tofile="expected"
                     ),
                 )
             )
