@@ -1,0 +1,38 @@
+from crab.runner.stdout_runner import StdoutRunner, Verbosity
+import os
+import polars as pl
+
+pl.Config.set_tbl_width_chars(320)
+pl.Config.set_fmt_str_lengths(10_000)
+pl.Config.set_tbl_rows(-1)
+pl.Config.set_tbl_cols(-1)
+
+lang = "IR"
+ext = "IR"
+
+os.chdir(os.path.expanduser(f"~/dev/nu/cs322/{lang}"))
+TEST_FOLDER = "tests/comp"
+
+runner = StdoutRunner(TEST_FOLDER, argc=1, verbosity=Verbosity.HIGH)
+
+# Compile one source file into ./a.out
+runner.with_pre_command(lambda f: f"./{lang}c {f}")
+
+# Execute compiled program
+runner.with_command(lambda f: f"perf stat -e cycles,instructions,branches,branch-misses,stalled-cycles-backend,stalled-cycles-frontend ./a.out")
+# runner.with_command(lambda f: f"./a.out")
+
+# Match each source file with optional input and expected output files
+runner.with_input(lambda f: f"{f}.in")
+runner.with_output(lambda f: f"{f}.out")
+
+# Pick all assignment/program files in TEST_FOLDER
+runner.with_args(f"*.{ext}")
+
+# runner.run()
+res = runner.run()
+print(res.select(["test", "passed", "time_mean_s"]))
+
+for row in res.select(["test", "stderr"]).iter_rows(named=True):
+    print(f"\n=== {row['test']} perf stderr ===")
+    print(row["stderr"] or "(no stderr)")
