@@ -52,8 +52,8 @@ tr:hover td { background: #fafafa; }
 details { border: 1px solid #ddd; border-radius: 4px; margin: 0.75rem 0; }
 summary { cursor: pointer; padding: 0.6rem 1rem; background: #fff0f0; font-weight: bold; }
 summary:hover { background: #ffe4e4; }
-.detail-body { padding: 0.75rem 1rem; }
-.stderr-block { background: #fff8f0; border-left: 3px solid #f90; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; word-break: break-all; }
+.detail-body { padding: 0.75rem 1rem; font-family: monospace; }
+.stderr-block { background: #fff8f0; border-left: 3px solid #f90; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; word-break: break-all; font-family: monospace; }
 .stdout-block { background: #f8f8f8; border-left: 3px solid #88c; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; word-break: break-all; font-family: monospace; }
 pre.diff { background: #f8f8f8; border: 1px solid #ddd; border-radius: 3px; padding: 0.75rem; font-size: 0.82rem; overflow-x: auto; white-space: pre; line-height: 1.4; }
 .diff-add { color: #2a7; background: #eaffea; display: block; }
