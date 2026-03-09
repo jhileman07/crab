@@ -10,7 +10,7 @@ pl.Config.set_tbl_cols(-1)
 lang = "IR"
 ext = "IR"
 
-os.chdir(os.path.expanduser(f"~/dev/nu/cs322/{lang}"))
+os.chdir(os.path.expanduser(f"~/cc/{lang}"))
 TEST_FOLDER = "tests/comp"
 
 runner = StdoutRunner(TEST_FOLDER, argc=1, verbosity=Verbosity.HIGH)
@@ -19,7 +19,7 @@ runner = StdoutRunner(TEST_FOLDER, argc=1, verbosity=Verbosity.HIGH)
 runner.with_pre_command(lambda f: f"./{lang}c {f}")
 
 # Execute compiled program
-runner.with_command(lambda f: f"perf stat -e cycles,instructions,branches,branch-misses,stalled-cycles-backend,stalled-cycles-frontend ./a.out")
+runner.with_command(lambda f: f"perf stat -ddd ./a.out")
 # runner.with_command(lambda f: f"./a.out")
 
 # Match each source file with optional input and expected output files
